@@ -63,11 +63,11 @@ class Client():
                         sys.stdout.flush()
 
                         if readableData == "Hit!":
-                            oponentBoard.insertByCoor(lastGuessStack.pop(), battleshipBoard.HIT_SYMBOL)
+                            oponentBoard.insert_by_coor(lastGuessStack.pop(), battleshipBoard.HIT_SYMBOL)
                             localBoard.yourTurn = True
                             print("[Me] My turn again.")
                         elif readableData == "Missed!":
-                            oponentBoard.insertByCoor(lastGuessStack.pop(), battleshipBoard.MISSED_SYMBOL)
+                            oponentBoard.insert_by_coor(lastGuessStack.pop(), battleshipBoard.MISSED_SYMBOL)
                         elif readableData == "Game over.":
                             print("You WON!")
                             exit()
@@ -104,7 +104,7 @@ class Client():
                         sys.stdout.write('[Me] ')
                         sys.stdout.flush()
                     else:
-                        if oponentBoard.validCoor(msg.rstrip()):
+                        if oponentBoard.check_coordinates_validity(msg.rstrip()):
                             if localBoard.yourTurn:
                                 s.send(msg.encode("utf-8"))
                                 lastGuessStack.append(msg)  # w celu ustalenia kolejnosci

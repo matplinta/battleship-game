@@ -104,7 +104,7 @@ class Server():
         syslog.syslog(syslog.LOG_NOTICE, "Client " + str(addr) + " connected")
         self.localBoard.initShips("random")                                                           #wpisanie polozenia statkow gracza
         self.client_socket.send(("Opponent ready!\n").encode("utf-8"))                               #wyslij wiadomosc gotowosci do przeciwnika
-        self.localBoard.syslogBoardState()
+        self.localBoard.log_boardstate_to_syslog()
         syslog.syslog(syslog.LOG_INFO, "Wait for your opponent to initiate their's ships.")
 
         while True:
@@ -119,13 +119,13 @@ class Server():
                 syslog.syslog(syslog.LOG_INFO, "[Opponent]" + data.decode("utf-8"))
 
                 if readableData == "Hit!":
-                    self.oponentBoard.insertByCoor(self.lastGuessStack.pop(), battleshipBoard.HIT_SYMBOL)
+                    self.oponentBoard.insert_by_coor(self.lastGuessStack.pop(), battleshipBoard.HIT_SYMBOL)
                     self.localBoard.yourTurn = True
                     syslog.syslog(syslog.LOG_INFO, "[Me] My turn again.")
                     time.sleep(SLEEPTIME)
                     syslog.syslog(syslog.LOG_INFO, "[Me] " + str(self.respond()))
                 elif readableData == "Missed!":
-                    self.oponentBoard.insertByCoor(self.lastGuessStack.pop(), battleshipBoard.MISSED_SYMBOL)
+                    self.oponentBoard.insert_by_coor(self.lastGuessStack.pop(), battleshipBoard.MISSED_SYMBOL)
                 elif readableData == "Game over.":
                     syslog.syslog(syslog.LOG_INFO, "You WON!")
                     exit()
@@ -156,7 +156,7 @@ class Server():
             xPosition = random.randint(1, 10)
             yPosition = random.randint(1, 10)
             coor = battleshipBoard.Board.reverseDict(yPosition) + str(xPosition) + "\n"
-            if self.oponentBoard.validCoor(coor.rstrip()) and coor not in self.guessStack:
+            if self.oponentBoard.check_coordinates_validity(coor.rstrip()) and coor not in self.guessStack:
                 break
 
         if self.localBoard.yourTurn:
