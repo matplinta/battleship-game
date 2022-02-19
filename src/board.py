@@ -10,30 +10,122 @@ Y_COORDINATES = ["A","B","C","D","E","F","G","H","I","J"]
 X_COORDINATES = range(1, 11)
 
 
+class BoardBaseException(Exception):
+    """Class exception for coordinates value error"""
+    pass
+
+
+class CoordinatesValueException(BoardBaseException):
+    """Class exception for coordinates value error"""
+    pass
+
+
+class ShipLengthException(BoardBaseException):
+    """Exception indicating that ship lenght is incorrect"""
+    pass
+
+
+class ShipNeighPointsNotAvailableException(BoardBaseException):
+    """Exception indicating that ship neighbouring points are not available"""
+    pass
+
+
 def row_array(symbol):
     return [symbol] + 10 * [EMPTY_SPACE]
 
 def board_array():
     return [] + [row_array(elem) for elem in Y_COORDINATES]
 
-def bipolarRange(start, stop):
-    if start < stop:
-        return range(start, stop + 1)
-    elif start > stop:
-        return range(stop, start + 1)
-    else:
-        return None
-
 
 class Board:
-    coor_mapping = {y: x for y, x in zip(Y_COORDINATES, X_COORDINATES)}
-    reverse_coor_mapping = lambda idx: list(Board.coor_mapping.keys())[list(Board.coor_mapping.values()).index(idx)]
+    y_coor_mapping = {y: x for y, x in zip(Y_COORDINATES, range(1, 11))}
+    reverse_coor_mapping = lambda idx: list(Board.y_coor_mapping.keys())[list(Board.y_coor_mapping.values()).index(idx)]
     def __init__(self):
         field_names_row = [" "] + [str(name) for name in X_COORDINATES]
         self.board = PrettyTable(field_names=field_names_row, hrules = 0)
         self.table = board_array()
         self.fill(self.table)
         self.yourTurn = True
+
+
+    @staticmethod
+    def ship_range(start, stop):
+        if start < stop:
+            return range(start, stop + 1)
+        elif start > stop:
+            return range(stop, start + 1)
+        else:
+            return None
+
+
+    @staticmethod
+    def get_single_coor(coordinates):
+        """Get numerical representation of coordinates from a string
+        """
+        y_input = coordinates[0].upper()
+        x_input = coordinates[1] if len(coordinates) == 2 else coordinates[1:3]
+
+        coor_row = Board.y_coor_mapping[y_input]
+        if int(x_input) not in X_COORDINATES:
+            raise ValueError()
+        else:
+            coor_col = int(x_input)
+        return coor_row, coor_col
+
+
+    @staticmethod
+    def get_double_coor(coordinates):
+        """Get numerical representation of coordinates from a string containing two coordinates
+        """
+        start, end = coordinates.split(" ")
+        start_row, start_col = Board.get_single_coor(start)
+        end_row, end_col = Board.get_single_coor(end)
+        return start_row, start_col, end_row, end_col
+
+
+    @staticmethod
+    def check_single_coor(coordinates):
+        """Check that single coordinates are valid
+        """
+        out_of_bounds_msg = "Values out of bounds! Try range from: [A-J][1-10]"
+        if 2 <= len(coordinates) <= 3:
+            y_input = coordinates[0].upper()
+            x_input = coordinates[1] if len(coordinates) == 2 else coordinates[1:3]
+            if y_input not in Board.y_coor_mapping:
+                print(out_of_bounds_msg)
+                raise CoordinatesValueException(out_of_bounds_msg)
+            coor_row = Board.y_coor_mapping[y_input]
+            coor_col = int(x_input)
+            if (coor_row < 1 or coor_row > 10) or (coor_col < 1 or coor_col > 10):
+                raise CoordinatesValueException(out_of_bounds_msg)
+        else:
+            raise CoordinatesValueException("Too much input data! Try range from: [A-J][1-10]")
+
+
+    @staticmethod
+    def check_double_coor(coordinates):
+        """Check validity of double coordinates. Coordinates must have a common row or 
+           a common column, but not both, so that ships are not aligned diagonally. 
+           Also starting and ending cooridnates shall not be identical. 
+           Throws CoordinatesValueException if the aforementioned requirements are not met.  
+        """
+        if len(coordinates.split(" ")) != 2:
+            raise CoordinatesValueException("Wrong coordinates format(or length)!")
+        start, end = coordinates.split(" ")
+        if start.upper() == end.upper():
+            raise CoordinatesValueException("Starting and ending coordinates cannot be the same.")
+        try:
+            Board.check_single_coor(start)
+        except CoordinatesValueException as e:
+            raise CoordinatesValueException(f"Wrong starting coordinates: {str(e)}")
+        try:
+            Board.check_single_coor(end)
+        except CoordinatesValueException as e:
+            raise CoordinatesValueException(f"Wrong ending coordinates: {str(e)}")
+        start_row, start_col = Board.get_single_coor(start)
+        end_row, end_col = Board.get_single_coor(end)
+        if (start_row != end_row and start_col != end_col):
+            raise CoordinatesValueException(f"Coordinates cannot go diagonally")
 
 
     def print(self):
@@ -50,7 +142,7 @@ class Board:
         """Fill the table representing the board
         """
         for row in table:
-            # print(list(Board.coor_mapping.keys())[list(Board.coor_mapping.values()).index(0)])
+            # print(list(Board.y_coor_mapping.keys())[list(Board.y_coor_mapping.values()).index(0)])
             self.board.add_row(row)
 
 
@@ -66,77 +158,12 @@ class Board:
     def insert_by_coor(self, coordinates, symbol=SHIP_SYMBOL):
         """Insert single character into the board with the given string
         """
-        row, col = self.get_single_coor(coordinates)
+        row, col = Board.get_single_coor(coordinates)
         self.insert(row, col, symbol)
 
 
-    def get_single_coor(self, coordinates):
-        """Get numerical representation of coordinates from a string
-        """
-        y_input = coordinates[0].upper()
-        x_input = coordinates[1] if len(coordinates) == 2 else coordinates[1:3]
-
-        coor_row = Board.coor_mapping[y_input]
-        coor_col = int(x_input)
-        return coor_row, coor_col
-
-
-    def get_double_coor(self, coordinates):
-        """Get numerical representation of coordinates from a string containing two coordinates
-        """
-        start, end = coordinates.split(" ")
-        start_row, start_col = self.get_single_coor(start)
-        end_row, end_col = self.get_single_coor(end)
-        return start_row, start_col, end_row, end_col
-
-
-    def check_single_coor(self, coordinates):
-        """Check validity of coordinates
-        """
-        out_of_bounds_msg = "Values out of bounds! Try range from: [A-J][1-10]"
-        if 2 <= len(coordinates) <= 3:
-            y_input = coordinates[0].upper()
-            x_input = coordinates[1] if len(coordinates) == 2 else coordinates[1:3]
-            if y_input not in Board.coor_mapping:
-                print(out_of_bounds_msg)
-                return False
-            coor_row = Board.coor_mapping[y_input]
-            coor_col = int(x_input)
-            if (coor_row < 1 or coor_row > 10) or (coor_col < 1 or coor_col > 10):
-                print(out_of_bounds_msg)
-                return False
-            return True
-        else:
-            print("Too much input data! Try range from: [A-J][1-10]")
-            return False
-        
-
-    def check_coordinates_validity(self, coordinates):
-        """Check validity of a single or double coordinates
-        """
-        if 2 <= len(coordinates) <= 3:
-            return self.check_single_coor(coordinates)
-        else:
-            if len(coordinates.split(" ")) != 2:
-                print("Wrong coordinates format(or length)!")
-                return False
-            start, end = coordinates.split(" ")
-            if not self.check_single_coor(start):
-                print("Wrong ending coordinates!")
-                return False
-            start_row, start_col = self.get_single_coor(start)
-            if not self.check_single_coor(end):
-                print("Wrong ending coordinates!")
-                return False
-            end_row, end_col = self.get_single_coor(end)
-            if (start_row != end_row and start_col != end_col):
-                print("Wrong coordinates!")
-                return False
-
-            return True
-
-    def check_point_availability(self, row, col):
-        """check for any existing neighbouring points on a board
+    def is_point_available(self, row, col):
+        """Checks if every neighbouring point relative to the specified by the arguments is free on the board.
         """
         X = Y = 10
         neighbours = lambda x, y : [(x2, y2) for x2 in range(x-1, x+2)
@@ -152,51 +179,62 @@ class Board:
                 return False
         return True
 
-    def checkShipAvailability(self, coorList, length):
-        start_row, start_col, end_row, end_col = coorList
-        if start_row == end_row:
-            if len(bipolarRange(start_col, end_col)) != length:
-                print("Wrong ship length!")
-                return False
-            for i in bipolarRange(start_col, end_col):
-                if not self.check_point_availability(start_row, i):
-                    print("Too close to the next ship! Try somewhere else.")
-                    return False
+
+    def check_ship_length(self, start, end, length):
+        if len(Board.ship_range(start, end)) != length:
+            raise ShipLengthException("Wrong ship length!")
+
+
+    def check_neighbouring_points(self, start, end, starting_point_in_axis, ship_alignment="horizontal"):
+        if ship_alignment not in ["horizontal", "vertical"]:
+            raise ValueError(f"Ship alignemnt: {ship_alignment} not supported")
+        for i in Board.ship_range(start, end):
+            coor_order = (starting_point_in_axis, i) if ship_alignment == "horizontal" else (i, starting_point_in_axis)
+            if not self.is_point_available(*coor_order):
+                raise ShipNeighPointsNotAvailableException("Too close to the next ship! Try somewhere else.")
+
+
+    def is_ship_available(self, coor_list, length):
+        """Checks if ship with specified length can be placed on the board. 
+           Looks for neighbouring points is all are available, as ships cannot touch each other.
+           Returns boolean indicating if ship placement in the specified coordinates is available.
+        """
+        start_row, start_col, end_row, end_col = coor_list
+        try:
+            if start_row == end_row:
+                self.check_ship_length(start_col, end_col, length)
+                self.check_neighbouring_points(start_col, end_col, start_row, "horizontal")
+            else:
+                self.check_ship_length(start_row, end_row, length)
+                self.check_neighbouring_points(start_row, end_row, start_col, "vertical")
+        except BoardBaseException as exception:
+            return False, exception
         else:
-            if len(bipolarRange(start_row, end_row)) != length:
-                print("Wrong ship length!")
-                return False
-            for i in bipolarRange(start_row, end_row):
-                if not self.check_point_availability(i, start_col):
-                    print("Too close to the next ship! Try somewhere else.")
-                    return False
-        return True
+            return True, None
 
 
-
-    def insertShip(self, coorList, length):  # inserts Ship unconditionally
-        start_row, start_col, end_row, end_col = coorList
+    def insert_ship(self, coor_list, length):
+        """Inserts ship onto board without regard for other points
+        """
+        start_row, start_col, end_row, end_col = coor_list
         if start_row == end_row:
-            if len(bipolarRange(start_col, end_col)) != length:
-                print("Wrong ship length!")
-                return False
-            for i in bipolarRange(start_col, end_col):
+            self.check_ship_length(start_col, end_col, length)
+            for i in Board.ship_range(start_col, end_col):
                 self.insert(start_row, i)
             return True
         else:
-            if len(bipolarRange(start_row, end_row)) != length:
-                print("Wrong ship length!")
-                return False
-            for i in bipolarRange(start_row, end_row):
+            self.check_ship_length(start_row, end_row, length)
+            for i in Board.ship_range(start_row, end_row):
                 self.insert(i, start_col)
             return True
+
 
     def safeInsertShip(self, coordinates, length):              #inserts Ship with all precautions
         if not self.check_coordinates_validity(coordinates):
             return False
         if length == 1 and (len(coordinates) == 2 or len(coordinates) == 3):
-            row, col = self.get_single_coor(coordinates)
-            if self.check_point_availability(row, col):
+            row, col = Board.get_single_coor(coordinates)
+            if self.is_point_available(row, col):
                 self.insert(row,col)
                 return True
             else:
@@ -209,8 +247,8 @@ class Board:
             print("Wrong coordinates format!")
             return False
         else:
-            if self.checkShipAvailability(self.get_double_coor(coordinates), length):
-                self.insertShip(self.get_double_coor(coordinates), length)
+            if self.is_ship_available(Board.get_double_coor(coordinates), length):
+                self.insert_ship(Board.get_double_coor(coordinates), length)
                 return True
             else:
                 return False
@@ -222,7 +260,7 @@ class Board:
             yPosition = random.randint(1, 10)
             coor = list()
             if shipLength == 1:
-                if self.check_point_availability(yPosition, xPosition):
+                if self.is_point_available(yPosition, xPosition):
                     strCoor = "{}{}".format(Board.reverse_coor_mapping(yPosition), xPosition)
                     break
             else:
@@ -253,7 +291,7 @@ class Board:
                     else:
                         coor = [yPosition, thirdPosition, yPosition, xPosition]
                 if coor:
-                    if self.checkShipAvailability( coor, shipLength):
+                    if self.is_ship_available( coor, shipLength):
                         strCoor = "{}{} {}{}".format(Board.reverse_coor_mapping(coor[0]), coor[1], Board.reverse_coor_mapping(coor[2]),coor[3])
                         break
                 else:
@@ -267,9 +305,9 @@ class Board:
               "Enter the starting and ending coordinates of the ship, like in the following example: A1 A4 for 4 square ship. ")
         shipList = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
         if command == "ready":
-            coorList = ["A1 A4", "C1 C3", "H10 J10", "A6 A7", "E2 F2", "G5 G6", "A10", "J1", "J5", "I3"]
+            coor_list = ["A1 A4", "C1 C3", "H10 J10", "A6 A7", "E2 F2", "G5 G6", "A10", "J1", "J5", "I3"]
             for i in range(10):
-                self.safeInsertShip(coorList[i], shipList[i])
+                self.safeInsertShip(coor_list[i], shipList[i])
             return True
         elif command == "two":
             self.safeInsertShip("A2", 1)
@@ -299,7 +337,7 @@ class Board:
             return True
 
     def ifHit(self, coordinates):
-        row, col = self.get_single_coor(coordinates)
+        row, col = Board.get_single_coor(coordinates)
         if self.table[row-1][col] == SHIP_SYMBOL:
             # print("[Me] Hit!")
             self.insert(row,col, HIT_SYMBOL)
