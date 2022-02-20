@@ -65,8 +65,8 @@ def test_check_single_coor():
 
 
 def test_check_double_coor():
-    with pytest.raises(CoordinatesValueException):
-        Board.check_double_coor("A1 A1")
+    # with pytest.raises(CoordinatesValueException):
+    #     Board.check_double_coor("A1 A1")
     with pytest.raises(CoordinatesValueException):
         Board.check_double_coor("A1 B2")
 
@@ -126,3 +126,75 @@ def test_is_ship_available():
     status, exception =  board.is_ship_available((3, 1, 3, 4), 2)
     assert status is False
     assert isinstance(exception, ShipLengthException)
+
+
+def test_insert_ship():
+    board = Board()
+    board.insert_ship((3, 1, 3, 4), 4)
+    with pytest.raises(ShipLengthException):
+        board.insert_ship((3, 1, 3, 4), 2)
+
+    board.insert_ship((1, 1, 1, 1), 1)
+    assert board.board.get_string().split("\n") == ['+---+---+---+---+---+---+---+---+---+---+----+', 
+                                                    '|   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |', 
+                                                    '+---+---+---+---+---+---+---+---+---+---+----+', 
+                                                    '| A | o | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| B | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| C | o | o | o | o | _ | _ | _ | _ | _ | _  |', 
+                                                    '| D | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| E | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| F | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| G | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| H | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| I | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| J | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '+---+---+---+---+---+---+---+---+---+---+----+']
+
+
+def test_safe_insert_ship():
+    board = Board()
+    board.insert_by_coor("C3")
+    assert board.safe_insert_ship("J10", 1) is True
+    assert board.safe_insert_ship("J4 J4", 1) is True
+    assert board.safe_insert_ship("C2 C4", 3) is False
+    assert board.safe_insert_ship("D2 D4", 3) is False
+    assert board.safe_insert_ship("E2 E4", 3) is True
+    assert board.safe_insert_ship("J10", 2) is False
+    assert board.board.get_string().split("\n") == ['+---+---+---+---+---+---+---+---+---+---+----+', 
+                                                    '|   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |', 
+                                                    '+---+---+---+---+---+---+---+---+---+---+----+', 
+                                                    '| A | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| B | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| C | _ | _ | o | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| D | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| E | _ | o | o | o | _ | _ | _ | _ | _ | _  |', 
+                                                    '| F | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| G | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| H | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| I | _ | _ | _ | _ | _ | _ | _ | _ | _ | _  |', 
+                                                    '| J | _ | _ | _ | o | _ | _ | _ | _ | _ | o  |', 
+                                                    '+---+---+---+---+---+---+---+---+---+---+----+']
+
+
+def test_random_ship_coor():
+    board = Board()
+    assert 2 <= len(board.random_ship_coor(ship_length=1)) <= 3
+    assert 5 <= len(board.random_ship_coor(ship_length=2)) <= 7
+    assert 5 <= len(board.random_ship_coor(ship_length=3)) <= 7
+    assert 5 <= len(board.random_ship_coor(ship_length=4)) <= 7
+
+
+def test_is_hit():
+    board = Board()
+    board.insert_by_coor("C3")
+    hit = board.is_hit("C3")
+    assert hit is True
+    hit = board.is_hit("C2")
+    assert hit is False
+
+
+def test_count_symbols():
+    board = Board()
+    board.insert_by_coor("C3")
+    count = board.count_symbols()
+    assert count == 1

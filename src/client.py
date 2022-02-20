@@ -1,120 +1,65 @@
 import sys
 import socket
-import select
-import battleshipBoard
+import argparse
+from player import Player
 
 
-class Client():
+def display_prompt(actor="Me"):
+    print(f'\r[{actor}] ', end="")
 
-    host = sys.argv[2] if len(sys.argv) > 2 else 'localhost'
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 9009
-    try:
+
+class Client(Player):
+    def __init__(self, host='127.0.0.1', port=9009):
+        super(Client, self).__init__(host=host, port=port)
+        self.connect()
+        self.your_turn = True
+
+    def connect(self):
         try:
-            sInfo = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM, socket.SOL_TCP)            #zwraca info odnosnie dostepnych interfaceow, dla TCP i podanego PORTu
+            # get info about available interfaces, for TCP protocol
+            socket_info = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM, socket.SOL_TCP)            
         except Exception as e:
-            print("getaddrinfo error: ", e)
-            sys.exit()
-        s = None
-        for interface in reversed(sInfo):                                                                #wybieramy pierwszy od tylu, ktorym jest IPv4, localhost
+            print("getaddrinfo error: ", str(e))
+            sys.exit(1)
+        
+        conn_id = None
+        while conn_id is None:
+            print("Choose one connection of the available ones:")
+            # iterate from the back, as there are IPv4 interfaces
+            for idx, interface in enumerate(reversed(socket_info)):
+                family, type_, proto, canonname, sockaddr = interface
+                print(f"[{idx}] {sockaddr}")
             try:
-                s = socket.socket(interface[0], interface[1])  # tworzenie socketu servera
-                s.settimeout(2)
-                s.connect(interface[4])
-
-                print(interface[0], interface[4])
-                break
-            except:
-                s.close()
+                choice = int(input())
+            except ValueError:
+                print("You need to enter the number")
                 continue
-        if not s:
-            print("Could not create client socket, exiting.")
-            sys.exit()
+            if 0 <= choice <= len(socket_info):
+                conn_id = choice
+                break
 
-        print('Connected to remote host. You can start playing.')
+        family, type_, _, _, sockaddr = list(reversed(socket_info))[conn_id]
+        self.conn_socket = socket.socket(family, type_)
+        self.conn_socket.settimeout(2)
+        try:
+            self.conn_socket.connect(sockaddr)
+        except ConnectionRefusedError as e:
+            print(f"Connection to {sockaddr} is not available. Maybe server has not started yet?")
+            sys.exit(1)
+        else:
+            print('Connected to remote host.')
 
-        oponentBoard = battleshipBoard.Board()
-        localBoard = battleshipBoard.Board()
-        localBoard.initShips("ready")
-        lastGuessStack = list()
-        s.send(("Opponent ready!\n").encode("utf-8"))
-        print("Wait for your opponent to initiate their's ships.")
 
-        sys.stdout.write('[Me] ')
-        sys.stdout.flush()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-s', '--server', type=str, default="127.0.0.1", help='IP of the server')
+    parser.add_argument('-p', '--port', type=int, default=9009, help='port used for the connection')
+    args = parser.parse_args()
 
-        while True:
-            socket_list = [sys.stdin, s]
-
-            # Get the list sockets which are readable
-            ready_to_read, ready_to_write, in_error = select.select(socket_list, [], [])
-
-            for sock in ready_to_read:
-                if sock == s:
-                    # incoming message from remote server, s
-                    data = sock.recv(4096)
-                    if not data:
-                        print('\nDisconnected from server')
-                        sys.exit()
-                    else:  # ODCZYT__ODCZYT__ODCZYT__ODCZYT__ODCZYT__ODCZYT__ODCZYT
-                        # print data
-                        readableData = data.decode("utf-8")[0:-1]
-                        sys.stdout.write("\r[Opponent] ")
-                        sys.stdout.write(data.decode("utf-8"))
-                        sys.stdout.flush()
-
-                        if readableData == "Hit!":
-                            oponentBoard.insert_by_coor(lastGuessStack.pop(), battleshipBoard.HIT_SYMBOL)
-                            localBoard.yourTurn = True
-                            print("[Me] My turn again.")
-                        elif readableData == "Missed!":
-                            oponentBoard.insert_by_coor(lastGuessStack.pop(), battleshipBoard.MISSED_SYMBOL)
-                        elif readableData == "Game over.":
-                            print("You WON!")
-                            exit()
-                        elif readableData == "Opponent ready!":
-                            print("Write your guess coordinates to start the game.\n")
-                            continue
-                        else:
-                            if localBoard.ifHit(readableData):
-                                print("[Me] Hit!")
-                                s.send(("Hit!\n").encode("utf-8"))
-                                if localBoard.countSymbols(battleshipBoard.SHIP_SYMBOL) == 0:
-                                    print("End of game, You LOST!")
-                                    s.send(("Game over.\n").encode("utf-8"))
-                                continue                                                        # ADDED
-
-                            else:
-                                print("[Me] Missed!")
-                                s.send(("Missed!\n").encode("utf-8"))
-                            print("-->Your turn!")
-                            localBoard.yourTurn = True
-                        sys.stdout.write('[Me] ')
-                        sys.stdout.flush()
-
-                else:  # ZAPIS__ZAPIS__ZAPIS__ZAPIS__ZAPIS__ZAPIS__ZAPIS__ZAPIS
-                    # user entered a message
-                    msg = sys.stdin.readline()
-
-                    if str(msg) == "player\n":
-                        localBoard.print()
-                        sys.stdout.write('[Me] ')
-                        sys.stdout.flush()
-                    elif str(msg) == "opponent\n":
-                        oponentBoard.print()
-                        sys.stdout.write('[Me] ')
-                        sys.stdout.flush()
-                    else:
-                        if oponentBoard.check_coordinates_validity(msg.rstrip()):
-                            if localBoard.yourTurn:
-                                s.send(msg.encode("utf-8"))
-                                lastGuessStack.append(msg)  # w celu ustalenia kolejnosci
-                                localBoard.yourTurn = False
-                            else:
-                                print("Wait for your turn!")
-                        sys.stdout.write('[Me] ')
-                        sys.stdout.flush()
+    instance = Client(host=args.server, port=args.port)
+    try:
+        instance.run()
     except KeyboardInterrupt:
         print("Ctrl+C entered, closing connection.")
-        s.close()
+        instance.conn_socket.close()
 
-instance = Client()

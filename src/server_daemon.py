@@ -1,6 +1,6 @@
 import sys
 import socket
-import battleshipBoard
+import board
 import random
 import syslog
 import time
@@ -37,8 +37,8 @@ class Server():
         print("Battleship server started on port  " + str(port))
         self.lastGuessStack = list()  # stos przechowujacy ostatnie zgadywane polozenie
         self.guessStack = list()
-        self.oponentBoard = battleshipBoard.Board()  # inicjalizacja planszy przeciwnika
-        self.localBoard = battleshipBoard.Board()  # inicjalizacja planszy gracza
+        self.oponentBoard = board.Board()  # inicjalizacja planszy przeciwnika
+        self.localBoard = board.Board()  # inicjalizacja planszy gracza
 
         # Start the daemon
 
@@ -102,7 +102,7 @@ class Server():
 
         self.client_socket, addr = server_socket.accept()                                       # akceptowanie polaczenia z klientem
         syslog.syslog(syslog.LOG_NOTICE, "Client " + str(addr) + " connected")
-        self.localBoard.initShips("random")                                                           #wpisanie polozenia statkow gracza
+        self.localBoard.init_ships("random")                                                           #wpisanie polozenia statkow gracza
         self.client_socket.send(("Opponent ready!\n").encode("utf-8"))                               #wyslij wiadomosc gotowosci do przeciwnika
         self.localBoard.log_boardstate_to_syslog()
         syslog.syslog(syslog.LOG_INFO, "Wait for your opponent to initiate their's ships.")
@@ -119,13 +119,13 @@ class Server():
                 syslog.syslog(syslog.LOG_INFO, "[Opponent]" + data.decode("utf-8"))
 
                 if readableData == "Hit!":
-                    self.oponentBoard.insert_by_coor(self.lastGuessStack.pop(), battleshipBoard.HIT_SYMBOL)
-                    self.localBoard.yourTurn = True
+                    self.oponentBoard.insert_by_coor(self.lastGuessStack.pop(), board.HIT_SYMBOL)
+                    self.localBoard.your_turn = True
                     syslog.syslog(syslog.LOG_INFO, "[Me] My turn again.")
                     time.sleep(SLEEPTIME)
                     syslog.syslog(syslog.LOG_INFO, "[Me] " + str(self.respond()))
                 elif readableData == "Missed!":
-                    self.oponentBoard.insert_by_coor(self.lastGuessStack.pop(), battleshipBoard.MISSED_SYMBOL)
+                    self.oponentBoard.insert_by_coor(self.lastGuessStack.pop(), board.MISSED_SYMBOL)
                 elif readableData == "Game over.":
                     syslog.syslog(syslog.LOG_INFO, "You WON!")
                     exit()
@@ -134,10 +134,10 @@ class Server():
                     continue
 
                 else:
-                    if self.localBoard.ifHit(readableData):
+                    if self.localBoard.is_hit(readableData):
                         syslog.syslog(syslog.LOG_INFO, "[Me] Hit!")
                         self.client_socket.send(("Hit!\n").encode("utf-8"))
-                        if self.localBoard.countSymbols(battleshipBoard.SHIP_SYMBOL) == 0:
+                        if self.localBoard.count_symbols(board.SHIP_SYMBOL) == 0:
                             syslog.syslog(syslog.LOG_INFO, "End of game, You LOST!")
                             self.client_socket.send(("Game over.\n").encode("utf-8"))
                         continue
@@ -145,7 +145,7 @@ class Server():
                         syslog.syslog(syslog.LOG_INFO, "[Me] Missed!")
                         self.client_socket.send(("Missed!\n").encode("utf-8"))
                     syslog.syslog(syslog.LOG_INFO, "-->Your turn!")
-                    self.localBoard.yourTurn = True
+                    self.localBoard.your_turn = True
                     time.sleep(SLEEPTIME)
                     syslog.syslog(syslog.LOG_INFO, "[Me] " + str(self.respond()))
 
@@ -155,15 +155,20 @@ class Server():
         while True:
             xPosition = random.randint(1, 10)
             yPosition = random.randint(1, 10)
-            coor = battleshipBoard.Board.reverseDict(yPosition) + str(xPosition) + "\n"
-            if self.oponentBoard.check_coordinates_validity(coor.rstrip()) and coor not in self.guessStack:
-                break
+            coor = board.Board.reverseDict(yPosition) + str(xPosition) + "\n"
+            try:
+                self.oponentBoard.check_single_coor(coor.rstrip())
+            except board.CoordinatesValueException as e: 
+                print(str(e))
+            else:
+                if coor not in self.guessStack:
+                    break
 
-        if self.localBoard.yourTurn:
+        if self.localBoard.your_turn:
             self.client_socket.send(coor.encode("utf-8"))
             self.lastGuessStack.append(coor)  # w celu ustalenia kolejnosci
             self.guessStack.append((coor))
-            self.localBoard.yourTurn = False
+            self.localBoard.your_turn = False
         return coor
 
 instance = Server()

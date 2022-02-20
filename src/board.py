@@ -40,22 +40,20 @@ def board_array():
 class Board:
     y_coor_mapping = {y: x for y, x in zip(Y_COORDINATES, range(1, 11))}
     reverse_coor_mapping = lambda idx: list(Board.y_coor_mapping.keys())[list(Board.y_coor_mapping.values()).index(idx)]
+
     def __init__(self):
         field_names_row = [" "] + [str(name) for name in X_COORDINATES]
         self.board = PrettyTable(field_names=field_names_row, hrules = 0)
         self.table = board_array()
         self.fill(self.table)
-        self.yourTurn = True
 
 
     @staticmethod
     def ship_range(start, stop):
-        if start < stop:
+        if start <= stop:
             return range(start, stop + 1)
-        elif start > stop:
-            return range(stop, start + 1)
         else:
-            return None
+            return range(stop, start + 1)
 
 
     @staticmethod
@@ -92,7 +90,6 @@ class Board:
             y_input = coordinates[0].upper()
             x_input = coordinates[1] if len(coordinates) == 2 else coordinates[1:3]
             if y_input not in Board.y_coor_mapping:
-                print(out_of_bounds_msg)
                 raise CoordinatesValueException(out_of_bounds_msg)
             coor_row = Board.y_coor_mapping[y_input]
             coor_col = int(x_input)
@@ -112,8 +109,6 @@ class Board:
         if len(coordinates.split(" ")) != 2:
             raise CoordinatesValueException("Wrong coordinates format(or length)!")
         start, end = coordinates.split(" ")
-        if start.upper() == end.upper():
-            raise CoordinatesValueException("Starting and ending coordinates cannot be the same.")
         try:
             Board.check_single_coor(start)
         except CoordinatesValueException as e:
@@ -221,97 +216,99 @@ class Board:
             self.check_ship_length(start_col, end_col, length)
             for i in Board.ship_range(start_col, end_col):
                 self.insert(start_row, i)
-            return True
         else:
             self.check_ship_length(start_row, end_row, length)
             for i in Board.ship_range(start_row, end_row):
                 self.insert(i, start_col)
-            return True
 
 
-    def safeInsertShip(self, coordinates, length):              #inserts Ship with all precautions
-        if not self.check_coordinates_validity(coordinates):
-            return False
-        if length == 1 and (len(coordinates) == 2 or len(coordinates) == 3):
-            row, col = Board.get_single_coor(coordinates)
-            if self.is_point_available(row, col):
-                self.insert(row,col)
-                return True
-            else:
-                print("Too close to the next ship! Try somewhere else.")
-                return False
-        elif length == 1 and not(len(coordinates) == 2 or len(coordinates) == 3):
+    def safe_insert_ship(self, coordinates, length):
+        """Inserts ship if the length and neighbouring points are available  
+        """
+        coor_list = coordinates.split(" ")
+        if len(coor_list) == 1:
+            coordinates = f"{coor_list[0]} {coor_list[0]}"
+        elif len(coor_list) != 2:
             print("Wrong coordinates format!")
             return False
-        elif length != 1 and (len(coordinates) == 2 or len(coordinates) == 3):
-            print("Wrong coordinates format!")
-            return False
+        
+        self.check_double_coor(coordinates)
+        status, exception = self.is_ship_available(Board.get_double_coor(coordinates), length)
+        if status is True:
+            self.insert_ship(Board.get_double_coor(coordinates), length)
         else:
-            if self.is_ship_available(Board.get_double_coor(coordinates), length):
-                self.insert_ship(Board.get_double_coor(coordinates), length)
-                return True
-            else:
-                return False
+            print(str(exception))
+
+        return status
 
 
-    def randomShipCoor(self, shipLength):
+    def random_ship_coor(self, ship_length):
         while True:
-            xPosition = random.randint(1, 10)
-            yPosition = random.randint(1, 10)
+            x = random.randint(1, 10)
+            y = random.randint(1, 10)
             coor = list()
-            if shipLength == 1:
-                if self.is_point_available(yPosition, xPosition):
-                    strCoor = "{}{}".format(Board.reverse_coor_mapping(yPosition), xPosition)
+            if ship_length == 1:
+                if self.is_point_available(y, x):
+                    coor_str = f"{Board.reverse_coor_mapping(y)}{x}"
                     break
             else:
                 direction = random.randint(0, 3)
                 if direction == 0:
-                    thirdPosition = yPosition - (shipLength - 1)
-                    if  thirdPosition < 1:
+                    z = y - (ship_length - 1)
+                    if  z < 1:
                         continue
                     else:
-                        coor = [thirdPosition, xPosition, yPosition, xPosition]
+                        coor = [z, x, y, x]
                 elif direction == 2:
-                    thirdPosition = yPosition + (shipLength - 1)
-                    if  thirdPosition > 10:
+                    z = y + (ship_length - 1)
+                    if  z > 10:
                         continue
                     else:
-                        coor = [yPosition, xPosition, thirdPosition, xPosition]
+                        coor = [y, x, z, x]
 
                 elif direction == 1:
-                    thirdPosition = xPosition + (shipLength - 1)
-                    if  thirdPosition > 10:
+                    z = x + (ship_length - 1)
+                    if  z > 10:
                         continue
                     else:
-                        coor = [yPosition, xPosition, yPosition, thirdPosition]
-                elif direction == 1:
-                    thirdPosition = xPosition - (shipLength - 1)
-                    if thirdPosition < 1:
+                        coor = [y, x, y, z]
+                elif direction == 3:
+                    z = x - (ship_length - 1)
+                    if z < 1:
                         continue
                     else:
-                        coor = [yPosition, thirdPosition, yPosition, xPosition]
+                        coor = [y, z, y, x]
                 if coor:
-                    if self.is_ship_available( coor, shipLength):
-                        strCoor = "{}{} {}{}".format(Board.reverse_coor_mapping(coor[0]), coor[1], Board.reverse_coor_mapping(coor[2]),coor[3])
+                    if self.is_ship_available(coor, ship_length):
+                        coor_str = "{}{} {}{}".format(Board.reverse_coor_mapping(coor[0]), coor[1], 
+                                                      Board.reverse_coor_mapping(coor[2]), coor[3])
                         break
                 else:
                     continue
 
-        print(strCoor)
-        return strCoor
+        return coor_str
 
-    def initShips(self, command = None):                                        #initiates loading ships sequence
-        print("Initiate the position of your ships, in the following order:\n1x 4 square ship, 2x 3 square ship, 3x 2 square ship, 4x 1 square ship.",
-              "Enter the starting and ending coordinates of the ship, like in the following example: A1 A4 for 4 square ship. ")
+    def init_ships(self, command=None): 
+        """Initiates loading ships sequence
+        """
+        init_mgs = """Initiate the position of your ships in the following order:
+- 1x 4 square ships, 
+- 2x 3 square ships, 
+- 3x 2 square ships, 
+- 4x 1 square ships.
+Enter the starting and ending coordinates of the ship, 
+like so: "A1 A4" for a one 4-square ship.
+"""
+        print(init_mgs)
         shipList = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
         if command == "ready":
             coor_list = ["A1 A4", "C1 C3", "H10 J10", "A6 A7", "E2 F2", "G5 G6", "A10", "J1", "J5", "I3"]
             for i in range(10):
-                self.safeInsertShip(coor_list[i], shipList[i])
+                self.safe_insert_ship(coor_list[i], shipList[i])
             return True
         elif command == "two":
-            self.safeInsertShip("A2", 1)
-            self.safeInsertShip("A4", 1)
+            self.safe_insert_ship("A2", 1)
+            self.safe_insert_ship("A4", 1)
             return True
         elif command == "short":
             for i in [2, 1]:
@@ -319,39 +316,38 @@ class Board:
                 print("Enter " + str(i) + " square ship coordinates: ")
                 while(True):
                     coordinates = input()
-                    if self.safeInsertShip(coordinates, i):
+                    if self.safe_insert_ship(coordinates, i):
                         break
                 self.print()
             return True
         elif command == "random":
             for shipLen in shipList:
-                self.safeInsertShip(self.randomShipCoor(shipLen), shipLen)
+                self.safe_insert_ship(self.random_ship_coor(shipLen), shipLen)
         else:
             for i in shipList:
                 print("Enter " + str(i) + " square ship coordinates: ")
                 while(True):
                     coordinates = input()
-                    if self.safeInsertShip(coordinates, i):
+                    if self.safe_insert_ship(coordinates, i):
                         break
                 self.print()
             return True
 
-    def ifHit(self, coordinates):
+
+    def is_hit(self, coordinates):
         row, col = Board.get_single_coor(coordinates)
         if self.table[row-1][col] == SHIP_SYMBOL:
-            # print("[Me] Hit!")
-            self.insert(row,col, HIT_SYMBOL)
+            self.insert(row, col, HIT_SYMBOL)
             return True
-        # print("[Me] Missed!")
         return False
 
-    def countSymbols(self, symbol=SHIP_SYMBOL):
+
+    def count_symbols(self, symbol=SHIP_SYMBOL):
         count = 0
         for row in self.table:
             for elem in row:
                 if elem == symbol:
                     count +=1
-        # print("Game over, you WON!")
         return count
 
 
