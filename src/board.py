@@ -92,7 +92,10 @@ class Board:
             if y_input not in Board.y_coor_mapping:
                 raise CoordinatesValueException(out_of_bounds_msg)
             coor_row = Board.y_coor_mapping[y_input]
-            coor_col = int(x_input)
+            try:
+                coor_col = int(x_input)
+            except ValueError:
+                raise CoordinatesValueException("Incorrect coordinate format! Try range from: [A-J][1-10]")
             if (coor_row < 1 or coor_row > 10) or (coor_col < 1 or coor_col > 10):
                 raise CoordinatesValueException(out_of_bounds_msg)
         else:
@@ -125,6 +128,10 @@ class Board:
 
     def print(self):
         print(self.board)
+
+
+    def get_board_print_lines(self):
+        return self.board.get_string().split("\n")
 
 
     def log_boardstate_to_syslog(self):
@@ -232,7 +239,11 @@ class Board:
             print("Wrong coordinates format!")
             return False
         
-        self.check_double_coor(coordinates)
+        try:
+            self.check_double_coor(coordinates)
+        except CoordinatesValueException as e:
+            print(str(e))
+            return False
         status, exception = self.is_ship_available(Board.get_double_coor(coordinates), length)
         if status is True:
             self.insert_ship(Board.get_double_coor(coordinates), length)
@@ -299,7 +310,6 @@ class Board:
 Enter the starting and ending coordinates of the ship, 
 like so: "A1 A4" for a one 4-square ship.
 """
-        print(init_mgs)
         shipList = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
         if command == "ready":
             coor_list = ["A1 A4", "C1 C3", "H10 J10", "A6 A7", "E2 F2", "G5 G6", "A10", "J1", "J5", "I3"]
@@ -324,10 +334,11 @@ like so: "A1 A4" for a one 4-square ship.
             for shipLen in shipList:
                 self.safe_insert_ship(self.random_ship_coor(shipLen), shipLen)
         else:
+            print(init_mgs)
             for i in shipList:
-                print("Enter " + str(i) + " square ship coordinates: ")
+                # print("Enter " + str(i) + " square ship coordinates: ")
                 while(True):
-                    coordinates = input()
+                    coordinates = input(f"Enter {i}-square ship coordinates: ")
                     if self.safe_insert_ship(coordinates, i):
                         break
                 self.print()

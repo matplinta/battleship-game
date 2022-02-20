@@ -11,7 +11,7 @@ class Server(Player):
     def connect(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.host, self.port))
+        self.server_socket.bind(('', self.port))
         self.server_socket.listen(1)
 
         # add server socket object to the list of readable connections
@@ -20,7 +20,7 @@ class Server(Player):
         self.conn_socket, addr = self.server_socket.accept()
         print(f"Client: {addr} connected")
         print("Wait for your opponent to initiate their's ships.")
-
+ 
 
 
 if __name__ == "__main__":

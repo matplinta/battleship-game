@@ -22,11 +22,14 @@ class Player():
             self.conn_socket.send((f"{message}\n").encode("utf-8"))
 
 
-    def initialize_game(self, init_ships_method="ready"):
+    def initialize_game(self):
         self.opponent_board = board.Board()
         self.local_board = board.Board()
-        self.local_board.init_ships(init_ships_method)
         self.last_guess_stack = list()
+        print("Initialize your board. You can either do it manually or use a random generator.")
+        should_random = input("Do you wish to generate ships coordinates randomly? [Y/n] ")
+        command = "random" if should_random.lower().startswith("y") else None
+        self.local_board.init_ships(command)
         self.send_message("ready")
         print("Wait for your opponent to initiate their ships...")
 
