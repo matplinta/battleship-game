@@ -49,6 +49,15 @@ class Board:
 
 
     @staticmethod
+    def generate_all_fields_list():
+        coordinates_list = []
+        for y_elem in Y_COORDINATES:
+                for x_elem in X_COORDINATES:
+                    coordinates_list.append(f"{y_elem}{x_elem}")
+        return coordinates_list
+
+
+    @staticmethod
     def ship_range(start, stop):
         if start <= stop:
             return range(start, stop + 1)
@@ -137,7 +146,7 @@ class Board:
     def log_boardstate_to_syslog(self):
         lines = self.board.get_string().split("\n")
         for line in lines:
-            syslog.syslog(syslog.LOG_INFO, lines)
+            syslog.syslog(syslog.LOG_INFO, line)
 
 
     def fill(self, table):
@@ -247,9 +256,6 @@ class Board:
         status, exception = self.is_ship_available(Board.get_double_coor(coordinates), length)
         if status is True:
             self.insert_ship(Board.get_double_coor(coordinates), length)
-        else:
-            print(str(exception))
-
         return status
 
 
@@ -332,7 +338,9 @@ like so: "A1 A4" for a one 4-square ship.
             return True
         elif command == "random":
             for shipLen in shipList:
-                self.safe_insert_ship(self.random_ship_coor(shipLen), shipLen)
+                status = False
+                while status is False:
+                    status = self.safe_insert_ship(self.random_ship_coor(shipLen), shipLen)
         else:
             print(init_mgs)
             for i in shipList:
