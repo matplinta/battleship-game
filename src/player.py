@@ -2,6 +2,7 @@ import sys
 import socket
 import select
 import board
+import shutil
 
 RECV_BUFFER = 4096
 
@@ -53,6 +54,31 @@ class Player():
             self.conn_socket.send((f"{message}\n").encode("utf-8"))
 
 
+    def print_player_board(self):
+        self.log("                   PLAYER")
+        self.local_board.print(self.log)
+
+
+    def print_opponent_board(self):
+        self.log("                  OPPONENT")
+        self.opponent_board.print(self.log)
+
+
+    def display_boards(self):
+        size = shutil.get_terminal_size()
+
+        player_lines = self.local_board.get_board_print_lines()
+        opponent_lines = self.opponent_board.get_board_print_lines()
+
+        if len(player_lines[0]) * 2 <= size.columns:
+            self.log(f"                   PLAYER                                          OPPONENT")
+            for line_player, line_oppo in zip(player_lines, opponent_lines):
+                self.log(f"{line_player}   {line_oppo}")
+        else:
+            self.print_player_board()
+            self.print_opponent_board()
+
+
     def initialize_game(self, init_ships_method=None):
         self.opponent_board = board.Board()
         self.local_board = board.Board()
@@ -65,6 +91,12 @@ class Player():
             command = init_ships_method
         self.local_board.init_ships(command)
         self.send_message("ready")
+        self.log("""Commands:
+ player\t\tdisplay player's board
+ opponent\tdisplay opponent's board
+ boards\t\tdisplay both boards
+ or guess coordinates by writing them in such format [A-J][1-10], e.g. A1
+ """)
         self.log("Wait for your opponent to initiate their ships...")
         self.display_prompt()
 
@@ -82,6 +114,7 @@ class Player():
         msg = msg.lower()
         if msg == "hit":
             self.opponent_board.insert_by_coor(self.last_guess_stack.pop(), board.HIT_SYMBOL)
+            self.print_opponent_board()
             self.your_turn = True
             self.log("[Me] My turn again!")
 
@@ -102,6 +135,7 @@ class Player():
             if self.local_board.is_hit(msg):
                 self.log("[Me] Hit!")
                 self.send_message("hit")
+                self.print_player_board()
                 if self.local_board.count_symbols(board.SHIP_SYMBOL) == 0:
                     self.log("Game over, You LOST!")
                     self.send_message("gameover")
@@ -117,10 +151,13 @@ class Player():
     def handle_user_action(self, action):
         action = str(action).strip()
         if action == "player":
-            self.local_board.print()
+            self.print_player_board()
 
         elif action == "opponent":
-            self.opponent_board.print()
+            self.print_opponent_board()
+
+        elif action == "boards":
+            self.display_boards()
 
         else:
             try:

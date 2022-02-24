@@ -108,7 +108,7 @@ class Board:
             if (coor_row < 1 or coor_row > 10) or (coor_col < 1 or coor_col > 10):
                 raise CoordinatesValueException(out_of_bounds_msg)
         else:
-            raise CoordinatesValueException("Too much input data! Try range from: [A-J][1-10]")
+            raise CoordinatesValueException("Wrong coordinates format! Try range from: [A-J][1-10]")
 
 
     @staticmethod
@@ -135,8 +135,13 @@ class Board:
             raise CoordinatesValueException(f"Coordinates cannot go diagonally")
 
 
-    def print(self):
-        print(self.board)
+    def print(self, method=None):
+        if method is None:
+            print(self.board)
+        else:   
+            player_lines = self.get_board_print_lines()
+            for line in player_lines:
+                method(line)
 
 
     def get_board_print_lines(self):
